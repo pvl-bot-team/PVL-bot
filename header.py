@@ -231,6 +231,8 @@ client = discord.Client()
 
 season_start_date = datetime.datetime(2018, 6, 1) # June 1st 2018, LP limit
 
+time_mult = {'s':1, 'm':60, 'h':3600, 'd':86400}
+
 pf = ProfanityFilter(extra_censor_list=['twat', 'bellend', 'bloody', 'bugger'])
 words = pf.get_profane_words()
 words.remove('gay')
@@ -524,3 +526,16 @@ def roster_sprites(mons, userid, salt):
   finalimg.save(filename)
   subprocess.call(['/root/badgebot/git.sh', filename])
 
+def time_parse_sec(time):
+  try:
+    return sum([int(t[:-1]) * time_mult[t[-1]] for t in time.split()])
+  except:
+    return None
+
+async def load_reminder(userid, msg, end, target, salt):
+  await client.wait_until_ready()
+  time = end - datetime.datetime.utcnow().timestamp()
+  await asyncio.sleep(time)
+  await client.send_message(discord.Object(id=target), '<@{}>: '.format(userid) + msg)
+  cursor.execute('DELETE FROM reminders WHERE salt=?', (salt,))
+  connection.commit()
