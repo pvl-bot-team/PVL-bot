@@ -33,6 +33,11 @@ from commands.setlp import *
 from commands.challenge import *
 from commands.sideboard import *
 from commands.remindme import *
+from commands.propose import *
+from commands.setbday import *
+from commands.getbday import *
+from commands.bdaylist import *
+from commands.settime import *
 
 def resetModules():
   for mod in modules:
@@ -96,7 +101,12 @@ modules = [
 'commands.setlp',
 'commands.challenge',
 'commands.sideboard',
-'commands.remindme'
+'commands.remindme',
+'commands.propose',
+'commands.getbday',
+'commands.setbday',
+'commands.bdaylist',
+'commands.settime',
 ]
 
 commands = {
@@ -140,30 +150,37 @@ commands = {
   'setlp':setlp,
   'challenge':challenge,
   'sideboard':sideboard,
-  'remindme':remindme
+  'remindme':remindme,
+  'propose':propose,
+  'getbday':getbday,
+  'setbday':setbday,
+  'bdaylist':bdaylist,
+  'settime':settime,
   }
 
 swear=40
 
 async def gcreate(message):
-  gcreator = message.author.id
-  print(gcreator)
-  resp = await client.wait_for_message(timeout=600, check=lambda x: x.author.id == giveawaybot and len(x.embeds) > 0)
-  print(resp)
-  if resp != None:
-    await client.pin_message(resp)
-    cursor.execute('INSERT INTO giveaways (id, gid) values (?,?)', (gcreator, resp.id))
-    connection.commit()
+  if message.server.id == '372042060913442818':
+    gcreator = message.author.id
+    resp = await client.wait_for_message(timeout=600, channel=client.get_channel('480933325759053854'),check=lambda x: x.author.id == giveawaybot and '**G' in x.content)
+    if resp != None:
+      await client.pin_message(resp)
+      cursor.execute('INSERT INTO giveaways (id, gid) values (?,?)', (gcreator, resp.id))
+      connection.commit()
 
 
 
 @client.event
 async def on_message(message):
+  if message.author.id == '245963462952484864' and 'butthead' in message.content.lower():
+    await client.send_message(message.channel, 'buttheat*')
   if message.author.id == giveawaybot and 'Congratulations' in message.content:
-    await asyncio.sleep(1)
+    m = re.search(r'the \*\*(.*)\*\*', message.content)
+    prize = m.group(1)
     pins = await client.pins_from(message.channel)
     for p in pins:
-      if 'ENDED' in p.content:
+      if prize in p.embeds[0]['author']['name']:
         cursor.execute('SELECT * from giveaways where gid=?', (p.id,))
         result = cursor.fetchone()
         cursor.execute('DELETE FROM giveaways where gid=?', (p.id,))
@@ -213,6 +230,10 @@ async def on_message(message):
 
   if text.lower().startswith('g!create') or text.lower().startswith('!gcreate'):
     await gcreate(message)
+  if text.lower().startswith('!bestpokemon'):
+    await client.send_message(message.channel, 'Pyukumuku')
+  if 'dix' in message.clean_content.lower():
+    await client.send_message(message.channel, '#DixForMod')
 
   if len(text) > 0 and text[0] == '!':
     args = text[1:].split(maxsplit=1)
