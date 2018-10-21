@@ -1,14 +1,15 @@
 from header import *
 async def getbday(message, args):
-  months = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split()
-  days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if args.lower().strip() == 'help':
+    await client.send_message(message.channel, embed=help_info)
+    return
   user = getmention(message)
   if user == None:
     userid = discorduser_to_id(message.author)
   else:
     userid = discorduser_to_id(user)
 
-  cursor.execute('SELECT bdayday, bdaymonth FROM userinfo WHERE id=?', (userid,))
+  cursor.execute(bday_select_str, (userid,))
   result = cursor.fetchone()
   if result == None or result[0] == None:
     msg = 'User does not have a saved Bday'

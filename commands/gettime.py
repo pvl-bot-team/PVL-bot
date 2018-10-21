@@ -1,5 +1,8 @@
 from header import *
 async def gettime(message, args):
+  if args.lower().strip() == 'help':
+    await client.send_message(message.channel, embed=help_info)
+    return
   user = getmention(message)
   if user == None:
     if len(args) == 0:
@@ -8,7 +11,7 @@ async def gettime(message, args):
       name = args.lower()
   else:
     name = discorduser_to_id(user)
-  cursor.execute('SELECT offset FROM time WHERE id=?', (name,))
+  cursor.execute(time_select_str, (name,))
   result = cursor.fetchone()
   if result == None:
     msg = 'There is no offset saved for that user/place'
