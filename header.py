@@ -77,7 +77,11 @@ open_challenge_badge_select_str = 'SELECT * FROM {} WHERE id=? AND badge=? AND s
 
 open_challenge_select_str = 'SELECT * FROM {} WHERE id=? and status="O"'.format(challenge_table)
 
+recent_challenge_select_str = 'SELECT opentime FROM {} WHERE id=? AND status NOT LIKE "%D" AND status != "C" ORDER BY opentime DESC'.format(challenge_table)
+
 challenge_str = 'INSERT INTO {} (id, opentime, badge, status) VALUES (?,?,?,"O")'.format(challenge_table)
+
+challenge_override_str = 'INSERT INTO {} (id, badge, opentime, accepttime, status) VALUES (?,?,?,?,"O")'.format(challenge_table)
 
 challenge_win_str = 'UPDATE {} SET status="W", closetime=? WHERE id=? AND badge=? AND status="O"'.format(challenge_table)
 
@@ -115,24 +119,42 @@ time_select_str = 'SELECT offset FROM time WHERE id=?'
 
 time_insert_str = 'INSERT INTO time (id, offset) VALUES (?,?)'
 
-time_update_atr = 'UPDATE time SET offset=? WHERE id=?'
+time_update_str = 'UPDATE time SET offset=? WHERE id=?'
 
 months = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split()
 days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
+team_insert_str = 'INSERT INTO teams (id, team, timestamp) VALUES (?, ?, ?)'
+
 
 arcade_channel = '463817264752492574'
 
+gym_types = ['flying', 'poison', 'dragon', 'fairy', 'steel', 'dark', 'ground', 'psychic']
+islands = ['melemele', 'poni', 'ulaula', 'akala']
+permission_roles = ['385447382567092234', '384724202613112843', '372559774350573570', '496397807494627338']
+
 badge_ids = {
-    'grasssingles':'<a:grasssingles:482073772535578655>',
-    'normalsingles':'<a:normalsingles:482073773730824192>',
-    'fairysingles':'<a:fairysingles:482067974119882752>',
-    'icesingles':'<a:icesingles:482067977714401302>',
-    'groundsingles':'<a:groundsingles:482067974027739137>',
-    'poisonsingles':'<a:poisonsingles:482070458552942604>',
-    'rocksingles':'<a:rocksingles:482071206678495252>',
-    'flyingsingles':'<a:flyingsingles:482071987984793600>',
+    'grass':'<a:grasssingles:482073772535578655>',
+    'normal':'<a:normalsingles:482073773730824192>',
+    'fairy':'<a:fairysingles:482067974119882752>',
+    'ice':'<a:icesingles:482067977714401302>',
+    'ground':'<a:groundsingles:482067974027739137>',
+    'poison':'<a:poisonsingles:482070458552942604>',
+    'rock':'<a:rocksingles:482071206678495252>',
+    'flying':'<a:flyingsingles:506409251326132305>',
+    'dark':'<a:darksingles:506408993758117898>',
+    'dragon':'<a:dragonsingles:482063698127749141>',
+    'psychic':'<a:psychicsingles:506409264143794176>',
+    'steel':'<a:steelsingles:482070459421294632>',
+    'ulaula':'<a:ulaula:506385368002854912>',
+    'poni':'<a:poni:506381370260455434>',
+    'melemele':'<a:melemele:506385369760268289>',
+    'akala':'<a:akala:506387179304648728>',
+    'sunne':'<a:sunne:506387413350744064>',
+    'moone':'<a:moone:506387413388754945>',
     }
+
+challenge_time_limit = 19*60*60
 
 tag_err_reg = '@(.*)#(\d*)'
 
@@ -224,6 +246,10 @@ ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 with open('/root/badgebot/monlist', 'rb') as fp:
   pokemon_list = pickle.load(fp)
 
+ubers = ['Gengar', 'Kangaskhan', 'Blaziken', 'Salamence', 'Metagross', 'Lucario', 'Aegislash', 'Wobuffet', 'Wynaut', 'Gothita', 'Gothorita', 'Gothitelle', 'Diglett', 'Dugtrio', 'Trapinch', 'Kecleon', 'Froakie', 'Frogadier', 'Greninja']
+
+wiki_url = 'https://www.reddit.com/r/PokeVerseLeague/wiki/index'
+
 sprite_url = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/{}.png'
 roster_url = 'https://raw.githubusercontent.com/Rishabh2/badgebot/master/rosters/{}.png'
 
@@ -239,6 +265,7 @@ reddit = praw.Reddit(user_agent='PokeVerseLeagueBot v0.1',
 subreddit = reddit.subreddit('PokeVerseLeague')
 
 client = discord.Client()
+
 
 time_mult = {'s':1, 'm':60, 'h':3600, 'd':86400}
 
@@ -279,9 +306,8 @@ def getmention(message):
 def haspermission(user):
   if not isinstance(user, str):
     user = discorduser_to_id(user)
-  user = id_to_discorduser(user, client.get_server('372042060913442818')
-)
-  return any(role.hoist for role in user.roles) if user != None else False
+  user = id_to_discorduser(user, client.get_server('372042060913442818'))
+  return any([role.id in permission_roles for role in user.roles]) if user != None else False
 
 def coinpermission(user):
   if not isinstance(user, str):
@@ -369,7 +395,17 @@ async def load_reminder(userid, msg, end, target, salt):
   connection.commit()
 
 def isbadge(badge):
-  return badge in gym_types or badge in islands
+  return badge.lower() in gym_types or badge.lower() in islands or badge.lower() == 'e4champ'
 
 def pokemon_fix(pokemon_name):
   return pokemon_name #TODO: Fix, to make the method return the correct pokemon name if the input name is wrong
+
+def user_badges(userid):
+  cursor.execute(badge_select_str, (userid,))
+  result = cursor.fetchall()
+  if len(result) == 0:
+    msg = 'No badges yet'
+  else:
+    msg = ' '.join([badge_ids[r[0].lower()] for r in result])
+  return msg
+
