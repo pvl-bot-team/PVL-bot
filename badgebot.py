@@ -244,7 +244,7 @@ async def on_message(message):
   if any([m.id=='227824927854559242' for m in message.mentions]):
     await client.send_message(message.channel, 'Your goddess will arrive shortly.')
   if text.lower().startswith('!banlist'):
-    await client.send_message(message.channel, 'legends and mythicals are banned from being used by challengers' + 'challengers are allowed one uber that is not legendary or mythical such as mega blaziken' + ' evasion boosting moves like doubles team are banned' + 'all evasion boosing abillities exept for moody are banned' + 'protein greninja is counted as an uber in the pvl'
+    await client.send_message(message.channel, 'legends and mythicals are banned from being used by challengers' /n 'challengers are allowed one uber that is not legendary or mythical such as mega blaziken' /n ' evasion boosting moves like doubles team are banned' /n 'all evasion boosing abillities exept for moody are banned' /n 'protein greninja is counted as an uber in the pvl as well as the move baton pass')
 
   if len(text) > 0 and text[0] == '!':
     args = text[1:].split(maxsplit=1)
